@@ -1,5 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>qtquickcontrols2.conf</file>
+        <file>icons/add.svg</file>
+        <file>icons/delete.svg</file>
     </qresource>
 </RCC>
