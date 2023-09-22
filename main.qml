@@ -44,6 +44,7 @@ ApplicationWindow {
             timeArray[i]["occupiedPositions"] = 0
             timeArray[i]["freePositions"] = 0
             timeModel.append(timeArray[i])
+            root.getTimeAvailableId(timeArray[i]["id"])
         }
     }
 
@@ -129,7 +130,6 @@ ApplicationWindow {
                             timeSelectionModel.select(timeModel.index(index,0), ItemSelectionModel.ClearAndSelect)
                         }
                         Component.onCompleted: {
-                            root.getTimeAvailableId(id)
                             highlighted = timeSelectionModel.isSelected(timeModel.index(index,0))
                         }
                         Connections {
