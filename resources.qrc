@@ -3,5 +3,8 @@
         <file>qtquickcontrols2.conf</file>
         <file>icons/add.svg</file>
         <file>icons/delete.svg</file>
+        <file>main.qml</file>
+        <file>icons/edit.svg</file>
+        <file>icons/refresh.svg</file>
     </qresource>
 </RCC>
