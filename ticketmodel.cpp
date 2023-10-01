@@ -65,7 +65,6 @@ QVariant TicketModel::data(const QModelIndex &index, int role) const
 }
 
 void TicketModel::loadFromArray(QJsonArray array) {
-    qDebug() << Q_FUNC_INFO << array.size();
     clear();
     for (QJsonValue value : array) {
         if (!value.isObject()) {
@@ -78,7 +77,6 @@ void TicketModel::loadFromArray(QJsonArray array) {
 }
 
 void TicketModel::loadFromJson(QString json) {
-    qDebug() << Q_FUNC_INFO << json.size();
     QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8());
     if (!doc.isArray()) {
         return;

@@ -118,15 +118,32 @@ ApplicationWindow {
             }
         }
 
-        ListView {
-            id: ticketView
-            clip: true
-            model: ticketModel
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            delegate: ItemDelegate {
-                width: ListView.view.width
-                text: firstNameRole+" "+lastNameRole+" "+emailRole
+        StackLayout {
+            id: stack
+
+            ColumnLayout {
+                Item {
+                    Layout.fillHeight: true
+                    Layout.maximumHeight: 10
+                }
+
+                TextField {
+                    placeholderText: "vyhledávání..."
+                    Layout.fillWidth: true
+                    Layout.fillHeight: false
+                }
+
+                ListView {
+                    id: ticketView
+                    clip: true
+                    model: ticketModel
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    delegate: ItemDelegate {
+                        width: ListView.view.width
+                        text: firstNameRole+" "+lastNameRole+" "+emailRole
+                    }
+                }
             }
         }
     }

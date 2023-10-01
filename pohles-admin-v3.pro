@@ -3,6 +3,7 @@ QT += quick
 SOURCES += \
         main.cpp \
         ticket.cpp \
+        ticketfiltermodel.cpp \
         ticketmodel.cpp
 
 resources.files = main.qml
@@ -22,4 +23,5 @@ DISTFILES += \
 
 HEADERS += \
     ticket.h \
+    ticketfiltermodel.h \
     ticketmodel.h
