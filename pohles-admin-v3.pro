@@ -1,7 +1,9 @@
 QT += quick
 
 SOURCES += \
-        main.cpp
+        main.cpp \
+        ticket.cpp \
+        ticketmodel.cpp
 
 resources.files = main.qml
 resources.prefix = /$${TARGET}
@@ -17,3 +19,7 @@ unix:!android: target.path = /opt/$${TARGET}/bin
 
 DISTFILES += \
     qtquickcontrols2.conf
+
+HEADERS += \
+    ticket.h \
+    ticketmodel.h
