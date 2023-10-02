@@ -9,7 +9,7 @@ class TicketFilterModel : public QSortFilterProxyModel
     Q_PROPERTY(QString query READ query WRITE setQuery NOTIFY queryChanged FINAL)
 
 public:
-    explicit TicketFilterModel(QObject *parent);
+    explicit TicketFilterModel(QObject *parent = nullptr);
 
     QString query() const
     {

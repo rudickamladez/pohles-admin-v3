@@ -29,6 +29,12 @@ ApplicationWindow {
         id: ticketModel
     }
 
+    TicketFilterModel {
+        id: ticketFilterModel
+        sourceModel: ticketModel
+        query: searchField.text
+    }
+
     Shortcut {
         sequence: "Ctrl+D"
         onActivated: root.debug = !root.debug
@@ -111,8 +117,20 @@ ApplicationWindow {
 
             Button {
                 text: "Rezervace"
-                onClicked: root.getTicket()
+                onClicked: {
+                    stack.currentIndex = 0
+                    root.getTicket()
+                }
             }
+
+            Button {
+                text: "Časy"
+                onClicked: {
+                    stack.currentIndex = 1
+                    root.getTime()
+                }
+            }
+
             Item {
                 Layout.fillHeight: true
             }
@@ -128,6 +146,7 @@ ApplicationWindow {
                 }
 
                 TextField {
+                    id: searchField
                     placeholderText: "vyhledávání..."
                     Layout.fillWidth: true
                     Layout.fillHeight: false
@@ -136,13 +155,113 @@ ApplicationWindow {
                 ListView {
                     id: ticketView
                     clip: true
-                    model: ticketModel
+                    model: ticketFilterModel
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     delegate: ItemDelegate {
                         width: ListView.view.width
-                        text: firstNameRole+" "+lastNameRole+" "+emailRole
+                        text: timeRole+" "+firstNameRole+" "+lastNameRole+" "+emailRole
                     }
+                    add: Transition {
+                        NumberAnimation {
+                            property: "opacity"
+                            from: 0.0
+                            to: 1.0
+                            duration: 200
+                        }
+                    }
+                }
+            }
+
+            ListView {
+                id: timeView
+                model: timeModel
+                clip: true
+                delegate: ItemDelegate {
+                    width: ListView.view.width
+                    text: name+" "+occupiedPositions+"/"+maxCountOfTickets
+                    onClicked: {
+                        root.getTimeAvailableId(id)
+                        timeSelectionModel.select(timeModel.index(index,0), ItemSelectionModel.ClearAndSelect)
+                    }
+                    Component.onCompleted: {
+                        highlighted = timeSelectionModel.isSelected(timeModel.index(index,0))
+                    }
+                    TapHandler {
+                        acceptedButtons: Qt.RightButton
+                        onTapped: (eventPoint) => {
+                                      root.getTimeAvailableId(id)
+                                      timeSelectionModel.select(timeModel.index(index,0), ItemSelectionModel.ClearAndSelect)
+                                      let p = mapToItem(Overlay.overlay, eventPoint.position)
+                                      timeContextMenuLoader.active = true
+                                      timeContextMenuLoader.item.x = p.x
+                                      timeContextMenuLoader.item.y = p.y
+                                      timeContextMenuLoader.item.open()
+                                  }
+                    }
+
+                    Connections {
+                        target: timeSelectionModel
+                        function onSelectionChanged(selected, deselected) {
+                            highlighted = timeSelectionModel.isSelected(timeModel.index(index,0))
+                        }
+                    }
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        color: pickColor(occupiedPositions, maxCountOfTickets)
+                        width: occupiedPositions > 0 ? (occupiedPositions/maxCountOfTickets)*parent.width : 0
+
+                        function pickColor(occupiedPositions, maxCountOfTickets) {
+                            if (maxCountOfTickets === 0) {
+                                return "transparent"
+                            } else if (occupiedPositions/maxCountOfTickets < 0.5) {
+                                return "green"
+                            } else if (occupiedPositions === maxCountOfTickets) {
+                                return "crimson"
+                            } else {
+                                return "goldenrod"
+                            }
+                        }
+                    }
+                    Component {
+                        id: timeContextMenu
+
+                        Menu {
+                            parent: Overlay.overlay
+                            MenuItem {
+                                text: "Upravit"
+                                icon.source: "qrc:/icons/edit.svg"
+                            }
+                            MenuItem {
+                                text: "Smazat"
+                                icon.source: "qrc:/icons/delete.svg"
+                            }
+                        }
+                    }
+
+                    Loader {
+                        id: timeContextMenuLoader
+                        active: false
+                        sourceComponent: timeContextMenu
+                    }
+                }
+                add: Transition {
+                    NumberAnimation {
+                        property: "opacity"
+                        from: 0.0
+                        to: 1.0
+                        duration: 200
+                    }
+                }
+                Label {
+                    anchors.fill: parent
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    wrapMode: Text.WordWrap
+                    visible: parent.count === 0
+                    text: "Žádné časy k zobrazení"
                 }
             }
         }
@@ -168,100 +287,6 @@ ApplicationWindow {
 //            ToolButton {
 //                icon.source: "qrc:/icons/delete.svg"
 //                enabled: timeSelectionModel.hasSelection
-//            }
-//        }
-
-//        ListView {
-//            id: timeView
-//            model: timeModel
-//            clip: true
-//            Layout.fillWidth: true
-//            Layout.fillHeight: true
-//            delegate: ItemDelegate {
-//                width: ListView.view.width
-//                text: name+" "+occupiedPositions+"/"+maxCountOfTickets
-//                onClicked: {
-//                    root.getTimeAvailableId(id)
-//                    timeSelectionModel.select(timeModel.index(index,0), ItemSelectionModel.ClearAndSelect)
-//                }
-//                Component.onCompleted: {
-//                    highlighted = timeSelectionModel.isSelected(timeModel.index(index,0))
-//                }
-//                TapHandler {
-//                    acceptedButtons: Qt.RightButton
-//                    onTapped: (eventPoint) => {
-//                                  root.getTimeAvailableId(id)
-//                                  timeSelectionModel.select(timeModel.index(index,0), ItemSelectionModel.ClearAndSelect)
-//                                  let p = mapToItem(Overlay.overlay, eventPoint.position)
-//                                  timeContextMenuLoader.active = true
-//                                  timeContextMenuLoader.item.x = p.x
-//                                  timeContextMenuLoader.item.y = p.y
-//                                  timeContextMenuLoader.item.open()
-//                              }
-//                }
-
-//                Connections {
-//                    target: timeSelectionModel
-//                    function onSelectionChanged(selected, deselected) {
-//                        highlighted = timeSelectionModel.isSelected(timeModel.index(index,0))
-//                    }
-//                }
-//                Rectangle {
-//                    anchors.left: parent.left
-//                    anchors.top: parent.top
-//                    anchors.bottom: parent.bottom
-//                    color: pickColor(occupiedPositions, maxCountOfTickets)
-//                    width: occupiedPositions > 0 ? (occupiedPositions/maxCountOfTickets)*parent.width : 0
-
-//                    function pickColor(occupiedPositions, maxCountOfTickets) {
-//                        if (maxCountOfTickets === 0) {
-//                            return "transparent"
-//                        } else if (occupiedPositions/maxCountOfTickets < 0.5) {
-//                            return "green"
-//                        } else if (occupiedPositions === maxCountOfTickets) {
-//                            return "crimson"
-//                        } else {
-//                            return "goldenrod"
-//                        }
-//                    }
-//                }
-//                Component {
-//                    id: timeContextMenu
-
-//                    Menu {
-//                        parent: Overlay.overlay
-//                        MenuItem {
-//                            text: "Upravit"
-//                            icon.source: "qrc:/icons/edit.svg"
-//                        }
-//                        MenuItem {
-//                            text: "Smazat"
-//                            icon.source: "qrc:/icons/delete.svg"
-//                        }
-//                    }
-//                }
-
-//                Loader {
-//                    id: timeContextMenuLoader
-//                    active: false
-//                    sourceComponent: timeContextMenu
-//                }
-//            }
-//            add: Transition {
-//                NumberAnimation {
-//                    property: "opacity"
-//                    from: 0.0
-//                    to: 1.0
-//                    duration: 200
-//                }
-//            }
-//            Label {
-//                anchors.fill: parent
-//                horizontalAlignment: Text.AlignHCenter
-//                verticalAlignment: Text.AlignVCenter
-//                wrapMode: Text.WordWrap
-//                visible: parent.count === 0
-//                text: "Žádné časy k zobrazení"
 //            }
 //        }
 //    }

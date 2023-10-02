@@ -4,9 +4,8 @@
 #include <algorithm>
 
 TicketFilterModel::TicketFilterModel(QObject *parent): QSortFilterProxyModel(parent) {
-
+    connect(this, &TicketFilterModel::queryChanged, this, &TicketFilterModel::invalidateFilter);
 }
-
 
 bool TicketFilterModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const {
     Q_UNUSED(source_parent)
@@ -19,10 +18,10 @@ bool TicketFilterModel::filterAcceptsRow(int source_row, const QModelIndex &sour
     QString lastName = index.data(TicketModel::LastNameRole).toString();
     QString email = index.data(TicketModel::EmailRole).toString();
     QString time = index.data(TicketModel::TimeRole).toString();
-    std::array strings = {firstName, lastName, email, time};
+    QStringList strings = {firstName, lastName, email, time};
 
-    return std::all_of(queries.cbegin(), queries.cend(), [&strings,this]() {
-        return std::any_of(strings.cbegin(), strings.cend(), [this](const QString &str) {
-               return str.contains(m_query, Qt::CaseInsensitive);
+    return std::all_of(queries.cbegin(), queries.cend(), [strings](const QString &q) {
+        return std::any_of(strings.cbegin(), strings.cend(), [q](const QString &str) {
+               return str.contains(q, Qt::CaseInsensitive);
     });});
 }
