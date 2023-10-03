@@ -52,7 +52,7 @@ QVariant TicketModel::data(const QModelIndex &index, int role) const
     case TicketModel::EmailRole:
         return ticket.email;
     case TicketModel::TimeIdRole:
-        return ticket.time;
+        return ticket.timeId;
     case TicketModel::TimeRole:
         return ticket.time;
     case TicketModel::TimeOfReservationRole:

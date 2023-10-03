@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 
 import Pohles
 
@@ -12,6 +13,8 @@ ApplicationWindow {
     title: qsTr("PohLes administration v3")
     minimumWidth: 640
     minimumHeight: 480
+
+    property string apiUrl: "https://api-dev.pohles.rudickamladez.cz/"
 
     footer: Label {
         text: "DEBUG"
@@ -80,7 +83,7 @@ ApplicationWindow {
                 }
             }
         }
-        request.open("GET", "https://api-dev.pohles.rudickamladez.cz/time/available/"+id, true);
+        request.open("GET", root.apiUrl+"time/available/"+id, true);
         request.send();
     }
 
@@ -95,8 +98,21 @@ ApplicationWindow {
                 ticketModel.loadFromJson(text)
             }
         }
-        request.open("GET", "https://api-dev.pohles.rudickamladez.cz/ticket", true);
+        request.open("GET", root.apiUrl+"ticket", true);
         request.send();
+    }
+
+    function postTicketId(ticketObject) {
+        let request = new XMLHttpRequest()
+        request.onreadystatechange = function() {
+            if (request.readyState === 4) {
+                root.getTicket()
+            }
+        }
+        request.open("PATCH", root.apiUrl+"ticket/"+ticketObject.id, true);
+        request.setRequestHeader("accept", "application/json")
+        request.setRequestHeader("Content-Type", "application/json")
+        request.send(JSON.stringify(ticketObject));
     }
 
     ListModel {
@@ -161,6 +177,99 @@ ApplicationWindow {
                     delegate: ItemDelegate {
                         width: ListView.view.width
                         text: timeRole+" "+firstNameRole+" "+lastNameRole+" "+emailRole
+                        onDoubleClicked: {
+                            ticketEditLoader.active = true
+                            ticketEditLoader.item.open()
+                        }
+
+                        Component {
+                            id: ticketDialog
+
+                            Dialog {
+                                parent: Overlay.overlay
+                                width: parent.width*0.8
+                                height: ticketGrid.preferredHeight
+                                x: (Overlay.overlay.width-width)/2
+                                y: (Overlay.overlay.height-height)/2
+                                standardButtons: Dialog.Cancel | Dialog.Ok
+                                GridLayout {
+                                    id: ticketGrid
+                                    columns: 2
+                                    anchors.fill: parent
+                                    Label {
+                                        text: "Upravit"
+                                    }
+                                    Switch {
+                                        id: editSwitch
+                                        checked: false
+                                    }
+                                    Label {
+                                        text: "Jméno"
+                                    }
+                                    TextField {
+                                        id: firstNameField
+                                        text: firstNameRole
+                                        enabled: editSwitch.checked
+                                        Layout.fillWidth: true
+                                    }
+                                    Label {
+                                        text: "Příjmení"
+                                    }
+                                    TextField {
+                                        id: lastNameField
+                                        text: lastNameRole
+                                        enabled: editSwitch.checked
+                                        Layout.fillWidth: true
+                                    }
+                                    Label {
+                                        text: "Email"
+                                    }
+                                    TextField {
+                                        id: emailField
+                                        text: emailRole
+                                        enabled: editSwitch.checked
+                                        Layout.fillWidth: true
+                                    }
+                                    Label {
+                                        text: "Čas"
+                                    }
+                                    ComboBox {
+                                        id: timeComboBox
+                                        enabled: editSwitch.checked
+                                        model: timeModel
+                                        valueRole: "id"
+                                        textRole: "name"
+                                        Component.onCompleted: {
+                                            timeComboBox.currentIndex = timeComboBox.indexOfValue(timeIdRole)
+                                        }
+                                    }
+                                }
+                                onClosed: {
+                                    ticketEditLoader.active = false
+                                }
+                                onAccepted: {
+                                    let object = {
+                                        id: idRole,
+                                        //"status":"unpaid",
+                                        //"statusChanges":[],
+                                        name: {
+                                            first: firstNameField.text,
+                                            last: lastNameField.text
+                                        },
+                                        email: emailField.text,
+                                        //"year":{"id":"650ab8aa62b3202698aa34b9","name":"2023","status":"active","times":["63374a511f76f1184328c2ee","63381bf41f76f1184328c310","63381c081f76f1184328c312","63381c6f1f76f1184328c314","63381c771f76f1184328c316","63381c7d1f76f1184328c318","63381c821f76f1184328c31a","63381c871f76f1184328c31c","63381c8c1f76f1184328c31e","63381c911f76f1184328c320","6346e08e072bc135f6c85383","63381ca01f76f1184328c322","63381ca51f76f1184328c324","63381cac1f76f1184328c326","6346e080072bc135f6c85381","63381cbe1f76f1184328c328","63381cc31f76f1184328c32c","63381cc81f76f1184328c32e","63381cce1f76f1184328c330","63381cd51f76f1184328c332","63381cda1f76f1184328c334","63381ce31f76f1184328c336"],"endOfReservations":"2023-10-20T18:10:20.230Z"},
+                                        time: timeComboBox.currentValue
+                                    }
+                                    root.postTicketId(object)
+                                }
+                            }
+                        }
+
+                        Loader {
+                            id: ticketEditLoader
+                            active: false
+                            sourceComponent: ticketDialog
+                        }
                     }
                     add: Transition {
                         NumberAnimation {
