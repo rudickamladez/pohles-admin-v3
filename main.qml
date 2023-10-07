@@ -15,6 +15,12 @@ ApplicationWindow {
     minimumHeight: 480
 
     property string apiUrl: "https://api-dev.pohles.rudickamladez.cz/"
+    property string keycloak_url: ""
+    property string keycloak_client_id: ""
+    property string keycloak_client_secret: ""
+    property string username: ""
+    property string password: ""
+    property var session
 
     footer: Label {
         text: "DEBUG"
@@ -22,8 +28,7 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        root.getTime()
-        root.getTicket()
+        root.getAuthTokens()
     }
 
     property bool debug: false
@@ -41,6 +46,27 @@ ApplicationWindow {
     Shortcut {
         sequence: "Ctrl+D"
         onActivated: root.debug = !root.debug
+    }
+
+    onSessionChanged: {
+        if (root.session.access_token === undefined || root.session.refresh_token === undefined) {
+            console.log("cannot retrieve authentication tokens")
+            return
+        }
+        root.getTime()
+        root.getTicket()
+    }
+
+    function getAuthTokens() {
+        let request = new XMLHttpRequest()
+        request.onreadystatechange = function() {
+            if (request.readyState === 4) {
+                root.session = JSON.parse(request.responseText)
+            }
+        }
+        request.open("POST", root.keycloak_url+"realms/pohles/protocol/openid-connect/token", true)
+        request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+        request.send("client_id="+root.keycloak_client_id+"&client_secret="+root.keycloak_client_secret+"&grant_type=password&username="+root.username+"&password="+root.password)
     }
 
     function getTime() {
@@ -61,7 +87,7 @@ ApplicationWindow {
                 }
             }
         }
-        request.open("GET", "https://api-dev.pohles.rudickamladez.cz/time", true);
+        request.open("GET", root.apiUrl+"time", true);
         request.send();
     }
 
@@ -93,26 +119,63 @@ ApplicationWindow {
             if (request.readyState === 4) {
                 var text = request.responseText;
                 if (root.debug) {
-                    console.log(text);
+//                    console.log(text);
                 }
                 ticketModel.loadFromJson(text)
             }
         }
         request.open("GET", root.apiUrl+"ticket", true);
+        request.setRequestHeader("Content-Type", "application/json")
+        request.setRequestHeader("Authorization", "Bearer "+root.session.access_token)
         request.send();
     }
 
-    function postTicketId(ticketObject) {
+    function patchTicketId(ticketObject) {
         let request = new XMLHttpRequest()
         request.onreadystatechange = function() {
             if (request.readyState === 4) {
+                console.log(request.responseText)
                 root.getTicket()
             }
         }
         request.open("PATCH", root.apiUrl+"ticket/"+ticketObject.id, true);
         request.setRequestHeader("accept", "application/json")
         request.setRequestHeader("Content-Type", "application/json")
+        request.setRequestHeader("Authorization", "Bearer "+root.session.access_token)
         request.send(JSON.stringify(ticketObject));
+    }
+
+    function deleteTicketId(ticketID) {
+        let request = new XMLHttpRequest()
+        request.onreadystatechange = function() {
+            if (request.readyState === 4) {
+                if (root.debug) {
+                    console.log(request.responseText)
+                }
+                root.getTicket()
+            }
+        }
+        request.open("DELETE", root.apiUrl+"ticket/"+ticketID, true)
+        request.setRequestHeader("accept", "application/json")
+        request.setRequestHeader("Authorization", "Bearer "+root.session.access_token)
+        request.send()
+    }
+
+    function postTicketEasy(newTicket) {
+        let request = new XMLHttpRequest()
+        request.onreadystatechange = function() {
+            if (request.readyState === 4) {
+                if (root.debug) {
+                    console.log(request.responseText)
+                }
+                root.getTicket()
+            }
+        }
+        request.open("POST", root.apiUrl+"ticket/easy", true)
+        request.setRequestHeader("accept", "application/json")
+        request.setRequestHeader("Content-Type", "application/json")
+        request.setRequestHeader("Authorization", "Bearer "+root.session.access_token)
+        request.send(JSON.stringify(newTicket))
     }
 
     ListModel {
@@ -122,6 +185,104 @@ ApplicationWindow {
     ItemSelectionModel {
         id: timeSelectionModel
         model: timeModel
+    }
+
+    ItemSelectionModel {
+        id: ticketSelectionModel
+        model: ticketFilterModel
+    }
+
+    Component {
+        id: addTicketComponent
+
+        Popup {
+            parent: Overlay.overlay
+            modal: true
+            width: parent.width*0.8
+            height: parent.height*0.8
+            x: (Overlay.overlay.width-width)/2
+            y: (Overlay.overlay.height-height)/2
+
+            GridLayout {
+                id: addTicketGrid
+                columns: 2
+                anchors.fill: parent
+                Label {
+                    text: "Vytvořit rezervaci"
+                    horizontalAlignment: Text.AlignHCenter
+                    Layout.columnSpan: 2
+                    Layout.fillWidth: true
+                }
+                Label {
+                    text: "Jméno"
+                }
+                TextField {
+                    id: addFirstName
+                    Layout.fillWidth: true
+                }
+                Label {
+                    text: "Příjmení"
+                }
+                TextField {
+                    id: addlastName
+                    Layout.fillWidth: true
+                }
+                Label {
+                    text: "Email"
+                }
+                TextField {
+                    id: addEmail
+                    Layout.fillWidth: true
+                }
+                Label {
+                    text: "Čas"
+                }
+                ComboBox {
+                    id: addTime
+                    model: timeModel
+                    valueRole: "id"
+                    textRole: "name"
+                }
+                RowLayout {
+                    Layout.columnSpan: 2
+                    Layout.fillWidth: true
+                    Item {
+                        Layout.fillWidth: true
+                    }
+                    Button {
+                        text: "Přidat"
+                        enabled: addFirstName.text != "" &&
+                                 addlastName.text != "" &&
+                                 addEmail.text != "" &&
+                                 addTime.currentValue !== ""
+                        onClicked: {
+                            let object = {
+                                name: {
+                                    first: addFirstName.text,
+                                    last: addlastName.text
+                                },
+                                email: addEmail.text,
+                                time: addTime.currentValue
+                            }
+                            root.postTicketEasy(object)
+                            addTicketLoader.item.close()
+                        }
+                    }
+                    Item {
+                        Layout.fillWidth: true
+                    }
+                }
+            }
+            onClosed: {
+                addTicketLoader.active = false
+            }
+        }
+    }
+
+    Loader {
+        id: addTicketLoader
+        active: false
+        sourceComponent: addTicketComponent
     }
 
     RowLayout {
@@ -161,11 +322,22 @@ ApplicationWindow {
                     Layout.maximumHeight: 10
                 }
 
-                TextField {
-                    id: searchField
-                    placeholderText: "vyhledávání..."
-                    Layout.fillWidth: true
-                    Layout.fillHeight: false
+                RowLayout {
+                    Button {
+                        text: "Přidat..."
+                        icon.source: "qrc:/icons/add.svg"
+                        onClicked: {
+                            addTicketLoader.active = true
+                            addTicketLoader.item.open()
+                        }
+                    }
+
+                    TextField {
+                        id: searchField
+                        placeholderText: "vyhledávání..."
+                        Layout.fillWidth: true
+                        Layout.fillHeight: false
+                    }
                 }
 
                 ListView {
@@ -177,9 +349,35 @@ ApplicationWindow {
                     delegate: ItemDelegate {
                         width: ListView.view.width
                         text: timeRole+" "+firstNameRole+" "+lastNameRole+" "+emailRole
+                        onClicked: {
+                            ticketSelectionModel.select(ticketFilterModel.index(index,0), ItemSelectionModel.ClearAndSelect)
+                        }
                         onDoubleClicked: {
                             ticketEditLoader.active = true
                             ticketEditLoader.item.open()
+                        }
+
+                        Component.onCompleted: {
+                            highlighted = ticketSelectionModel.isSelected(ticketFilterModel.index(index,0))
+                        }
+
+                        Connections {
+                            target: ticketSelectionModel
+                            function onSelectionChanged(selected, deselected) {
+                                highlighted = ticketSelectionModel.isSelected(ticketFilterModel.index(index,0))
+                            }
+                        }
+
+                        TapHandler {
+                            acceptedButtons: Qt.RightButton
+                            onTapped: (eventPoint) => {
+                                          ticketSelectionModel.select(ticketFilterModel.index(index,0), ItemSelectionModel.ClearAndSelect)
+                                          let p = mapToItem(Overlay.overlay, eventPoint.position)
+                                          ticketContextMenuLoader.active = true
+                                          ticketContextMenuLoader.item.x = p.x
+                                          ticketContextMenuLoader.item.y = p.y
+                                          ticketContextMenuLoader.item.open()
+                                      }
                         }
 
                         Component {
@@ -196,12 +394,16 @@ ApplicationWindow {
                                     id: ticketGrid
                                     columns: 2
                                     anchors.fill: parent
-                                    Label {
-                                        text: "Upravit"
-                                    }
-                                    Switch {
-                                        id: editSwitch
-                                        checked: false
+                                    RowLayout {
+                                        Layout.columnSpan: 2
+                                        Layout.fillWidth: true
+                                        Item {Layout.fillWidth: true}
+                                        Switch {
+                                            id: editSwitch
+                                            text: "Upravit"
+                                            checked: false
+                                        }
+                                        Item {Layout.fillWidth: true}
                                     }
                                     Label {
                                         text: "Jméno"
@@ -250,17 +452,14 @@ ApplicationWindow {
                                 onAccepted: {
                                     let object = {
                                         id: idRole,
-                                        //"status":"unpaid",
-                                        //"statusChanges":[],
                                         name: {
                                             first: firstNameField.text,
                                             last: lastNameField.text
                                         },
                                         email: emailField.text,
-                                        //"year":{"id":"650ab8aa62b3202698aa34b9","name":"2023","status":"active","times":["63374a511f76f1184328c2ee","63381bf41f76f1184328c310","63381c081f76f1184328c312","63381c6f1f76f1184328c314","63381c771f76f1184328c316","63381c7d1f76f1184328c318","63381c821f76f1184328c31a","63381c871f76f1184328c31c","63381c8c1f76f1184328c31e","63381c911f76f1184328c320","6346e08e072bc135f6c85383","63381ca01f76f1184328c322","63381ca51f76f1184328c324","63381cac1f76f1184328c326","6346e080072bc135f6c85381","63381cbe1f76f1184328c328","63381cc31f76f1184328c32c","63381cc81f76f1184328c32e","63381cce1f76f1184328c330","63381cd51f76f1184328c332","63381cda1f76f1184328c334","63381ce31f76f1184328c336"],"endOfReservations":"2023-10-20T18:10:20.230Z"},
                                         time: timeComboBox.currentValue
                                     }
-                                    root.postTicketId(object)
+                                    root.patchTicketId(object)
                                 }
                             }
                         }
@@ -269,6 +468,39 @@ ApplicationWindow {
                             id: ticketEditLoader
                             active: false
                             sourceComponent: ticketDialog
+                        }
+
+                        Component {
+                            id: ticketContextMenu
+
+                            Menu {
+                                parent: Overlay.overlay
+
+                                MenuItem {
+                                    text: "Upravit"
+                                    icon.source: "qrc:/icons/edit.svg"
+                                    onClicked: {
+                                        ticketEditLoader.active = true
+                                        ticketEditLoader.item.open()
+                                    }
+                                }
+                                MenuItem {
+                                    text: "Smazat"
+                                    icon.source: "qrc:/icons/delete.svg"
+                                    onClicked: {
+                                        root.deleteTicketId(idRole)
+                                    }
+                                }
+                                onClosed: {
+                                    ticketContextMenuLoader.active = false
+                                }
+                            }
+                        }
+
+                        Loader {
+                            id: ticketContextMenuLoader
+                            active: false
+                            sourceComponent: ticketContextMenu
                         }
                     }
                     add: Transition {
@@ -409,35 +641,6 @@ ApplicationWindow {
 
 //        RowLayout {
 //            Layout.fillWidth: true
-
-//            ToolButton {
-//                icon.source: "qrc:/icons/add.svg"
-//            }
-//            ToolButton {
-//                icon.source: "qrc:/icons/delete.svg"
-//            }
-//        }
-
-//        ListView {
-//            Layout.fillWidth: true
-//            Layout.fillHeight: true
-//            clip: true
-//            add: Transition {
-//                NumberAnimation {
-//                    property: "opacity"
-//                    from: 0.0
-//                    to: 1.0
-//                    duration: 200
-//                }
-//            }
-//            Label {
-//                anchors.fill: parent
-//                horizontalAlignment: Text.AlignHCenter
-//                verticalAlignment: Text.AlignVCenter
-//                wrapMode: Text.WordWrap
-//                visible: parent.count === 0
-//                text: "Žádné rezervace k zobrazení"
-//            }
 //        }
 //    }
 }
