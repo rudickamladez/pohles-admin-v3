@@ -24,6 +24,12 @@ ApplicationWindow {
     property var session
     property bool validSession: root.session !== undefined && root.session.access_token !== undefined && root.session.refresh_token !== undefined
 
+    property int paid: 0
+    property int free: 0
+    property int reserved: 0
+    property int total: 0
+    property int cancelled: 0
+
     footer: Label {
         text: "DEBUG"
         visible: root.debug
@@ -196,6 +202,28 @@ ApplicationWindow {
         request.send(JSON.stringify(newTicket))
     }
 
+    function getTimeActiveSum() {
+        let request = new XMLHttpRequest()
+        request.onreadystatechange = function() {
+            if (request.readyState === 4) {
+                if (root.debug) {
+                    console.log(request.responseText)
+                }
+                let stats = JSON.parse(request.responseText)
+                root.paid = stats.paid
+                root.free = stats.free
+                root.reserved = stats.reserved
+                root.total = stats.total
+                root.cancelled = stats.cancelled
+                statsPopup.open()
+            }
+        }
+        request.open("GET", root.apiUrl+"time/active/sum", true)
+        request.setRequestHeader("accept", "application/json")
+        request.setRequestHeader("Access-Control-Allow-Origin", true)
+        request.send()
+    }
+
     ListModel {
         id: timeModel
     }
@@ -208,6 +236,18 @@ ApplicationWindow {
     ItemSelectionModel {
         id: ticketSelectionModel
         model: ticketFilterModel
+    }
+
+    Popup {
+        id: statsPopup
+        modal: true
+        x: (parent.width-width)/2
+        y: (parent.height-height)/2
+
+        Label {
+            id: statsLabel
+            text: "Volno:\t"+root.free+"\nRezervace:\t"+root.reserved+"\nKapacita:\t"+root.total
+        }
     }
 
     Popup {
@@ -412,6 +452,10 @@ ApplicationWindow {
                             addTicketLoader.active = true
                             addTicketLoader.item.open()
                         }
+                    }
+                    RoundButton {
+                        icon.source: "qrc:/icons/info.svg"
+                        onClicked: root.getTimeActiveSum()
                     }
 
                     TextField {
