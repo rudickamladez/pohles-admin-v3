@@ -23,6 +23,6 @@ Ticket::Ticket(QJsonObject object) {
     QJsonValue yearValue = object.value("year");
     if (yearValue.isObject()) {
         QJsonObject yearObject = yearValue.toObject();
-        year = yearObject.value("name").toInt(-1);
+        year = yearObject.value("name").toString().toInt();
     }
 }

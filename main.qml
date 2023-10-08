@@ -139,7 +139,7 @@ ApplicationWindow {
             if (request.readyState === 4) {
                 var text = request.responseText;
                 if (root.debug) {
-//                    console.log(text);
+                    console.log(text);
                 }
                 ticketModel.loadFromJson(text)
             }
