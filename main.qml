@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
+import QtCore
 
 import Pohles
 
@@ -15,12 +16,13 @@ ApplicationWindow {
     minimumHeight: 480
 
     property string apiUrl: "https://api-dev.pohles.rudickamladez.cz/"
-    property string keycloak_url: ""
-    property string keycloak_client_id: ""
+    property string keycloak_url: "https://auth.lukasmatuska.cz/"
+    property string keycloak_client_id: "admin-v3"
     property string keycloak_client_secret: ""
     property string username: ""
     property string password: ""
     property var session
+    property bool validSession: root.session !== undefined && root.session.access_token !== undefined && root.session.refresh_token !== undefined
 
     footer: Label {
         text: "DEBUG"
@@ -28,10 +30,17 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        root.getAuthTokens()
+        loginPopup.open()
     }
 
     property bool debug: false
+
+    Settings {
+        id: settings
+        property alias username: root.username
+        property alias password: root.password
+        property alias keycloak_client_secret: root.keycloak_client_secret
+    }
 
     TicketModel {
         id: ticketModel
@@ -49,12 +58,14 @@ ApplicationWindow {
     }
 
     onSessionChanged: {
-        if (root.session.access_token === undefined || root.session.refresh_token === undefined) {
+        if (root.session !== undefined && root.session.access_token !== undefined && root.session.refresh_token !== undefined) {
+            loginPopup.close()
+            root.getTime()
+            root.getTicket()
+        } else {
             console.log("cannot retrieve authentication tokens")
-            return
+            loginPopup.open()
         }
-        root.getTime()
-        root.getTicket()
     }
 
     function getAuthTokens() {
@@ -66,6 +77,7 @@ ApplicationWindow {
         }
         request.open("POST", root.keycloak_url+"realms/pohles/protocol/openid-connect/token", true)
         request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+        request.setRequestHeader("Access-Control-Allow-Origin", true)
         request.send("client_id="+root.keycloak_client_id+"&client_secret="+root.keycloak_client_secret+"&grant_type=password&username="+root.username+"&password="+root.password)
     }
 
@@ -88,6 +100,7 @@ ApplicationWindow {
             }
         }
         request.open("GET", root.apiUrl+"time", true);
+        request.setRequestHeader("Access-Control-Allow-Origin", true)
         request.send();
     }
 
@@ -110,6 +123,7 @@ ApplicationWindow {
             }
         }
         request.open("GET", root.apiUrl+"time/available/"+id, true);
+        request.setRequestHeader("Access-Control-Allow-Origin", true)
         request.send();
     }
 
@@ -127,6 +141,7 @@ ApplicationWindow {
         request.open("GET", root.apiUrl+"ticket", true);
         request.setRequestHeader("Content-Type", "application/json")
         request.setRequestHeader("Authorization", "Bearer "+root.session.access_token)
+        request.setRequestHeader("Access-Control-Allow-Origin", true)
         request.send();
     }
 
@@ -142,6 +157,7 @@ ApplicationWindow {
         request.setRequestHeader("accept", "application/json")
         request.setRequestHeader("Content-Type", "application/json")
         request.setRequestHeader("Authorization", "Bearer "+root.session.access_token)
+        request.setRequestHeader("Access-Control-Allow-Origin", true)
         request.send(JSON.stringify(ticketObject));
     }
 
@@ -158,6 +174,7 @@ ApplicationWindow {
         request.open("DELETE", root.apiUrl+"ticket/"+ticketID, true)
         request.setRequestHeader("accept", "application/json")
         request.setRequestHeader("Authorization", "Bearer "+root.session.access_token)
+        request.setRequestHeader("Access-Control-Allow-Origin", true)
         request.send()
     }
 
@@ -175,6 +192,7 @@ ApplicationWindow {
         request.setRequestHeader("accept", "application/json")
         request.setRequestHeader("Content-Type", "application/json")
         request.setRequestHeader("Authorization", "Bearer "+root.session.access_token)
+        request.setRequestHeader("Access-Control-Allow-Origin", true)
         request.send(JSON.stringify(newTicket))
     }
 
@@ -190,6 +208,70 @@ ApplicationWindow {
     ItemSelectionModel {
         id: ticketSelectionModel
         model: ticketFilterModel
+    }
+
+    Popup {
+        id: loginPopup
+        width: parent.width*0.8
+        height: parent.height*0.8
+        x: (parent.width-width)/2
+        y: (parent.height-height)/2
+        closePolicy: Popup.NoAutoClose
+        modal: true
+
+        GridLayout {
+            anchors.fill: parent
+            columns: 2
+
+            Label {
+                text: "Přihlášení"
+                horizontalAlignment: Text.AlignHCenter
+                Layout.columnSpan: 2
+                Layout.fillWidth: true
+            }
+            Label {
+                text: "Login"
+            }
+            TextField {
+                id: loginField
+                text: root.username
+                Layout.fillWidth: true
+            }
+            Label {
+                text: "Heslo"
+            }
+            TextField {
+                id: passwordField
+                text: root.password
+                echoMode: TextInput.Password
+                Layout.fillWidth: true
+            }
+            Label {
+                text: "Token"
+            }
+            TextField {
+                id: tokenField
+                text: root.keycloak_client_secret
+                echoMode: TextInput.Password
+                Layout.fillWidth: true
+            }
+            RowLayout {
+                Layout.columnSpan: 2
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button {
+                    text: "Přihlásit"
+                    enabled: loginField.text != "" && passwordField.text != "" && tokenField.text != ""
+                    onClicked: {
+                        root.username = loginField.text
+                        root.password = passwordField.text
+                        root.keycloak_client_secret = tokenField.text
+                        root.getAuthTokens()
+                    }
+                }
+                Item { Layout.fillWidth: true }
+            }
+        }
     }
 
     Component {
@@ -251,9 +333,9 @@ ApplicationWindow {
                     }
                     Button {
                         text: "Přidat"
-                        enabled: addFirstName.text != "" &&
-                                 addlastName.text != "" &&
-                                 addEmail.text != "" &&
+                        enabled: addFirstName.text !== "" &&
+                                 addlastName.text !== "" &&
+                                 addEmail.text !== "" &&
                                  addTime.currentValue !== ""
                         onClicked: {
                             let object = {
@@ -510,6 +592,11 @@ ApplicationWindow {
                             to: 1.0
                             duration: 200
                         }
+                        NumberAnimation {
+                            property: "opacity"
+                            to: 1.0
+                            duration: 0
+                        }
                     }
                 }
             }
@@ -607,40 +694,4 @@ ApplicationWindow {
             }
         }
     }
-
-//    ColumnLayout {
-//        anchors.left: parent.left
-//        anchors.right: parent.horizontalCenter
-//        anchors.top: parent.top
-//        anchors.bottom: parent.bottom
-//        spacing: 0
-
-//        RowLayout {
-//            Layout.fillWidth: true
-
-//            ToolButton {
-//                icon.source: "qrc:/icons/refresh.svg"
-//                onClicked: root.getTime()
-//            }
-//            ToolButton {
-//                icon.source: "qrc:/icons/add.svg"
-//            }
-//            ToolButton {
-//                icon.source: "qrc:/icons/delete.svg"
-//                enabled: timeSelectionModel.hasSelection
-//            }
-//        }
-//    }
-
-//    ColumnLayout {
-//        anchors.left: parent.horizontalCenter
-//        anchors.right: parent.right
-//        anchors.top: parent.top
-//        anchors.bottom: parent.bottom
-//        spacing: 0
-
-//        RowLayout {
-//            Layout.fillWidth: true
-//        }
-//    }
 }

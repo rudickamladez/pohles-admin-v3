@@ -7,6 +7,9 @@
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
+    app.setOrganizationName("Rudická mládež");
+    app.setOrganizationDomain("rudickamladez.cz");
+    app.setApplicationName("PohLes Admin v3");
 
     QQmlApplicationEngine engine;
     qmlRegisterType<TicketModel>("Pohles", 1, 0, "TicketModel");
