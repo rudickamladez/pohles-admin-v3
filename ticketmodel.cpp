@@ -70,8 +70,17 @@ void TicketModel::loadFromArray(QJsonArray array) {
         if (!value.isObject()) {
             continue;
         }
+        QJsonObject object = value.toObject();
+        QJsonValue yearValue = object.value("year");
+        if (yearValue.isObject()) {
+            QJsonObject yearObject = yearValue.toObject();
+            QString year = yearObject.value("name").toString();
+            if (year != "2023") {
+                continue;
+            }
+        }
         beginInsertRows({}, rowCount(), rowCount());
-        m_tickets << Ticket(value.toObject());
+        m_tickets << Ticket(object);
         endInsertRows();
     }
 }

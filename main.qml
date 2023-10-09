@@ -15,7 +15,7 @@ ApplicationWindow {
     minimumWidth: 640
     minimumHeight: 480
 
-    property string apiUrl: "https://api-dev.pohles.rudickamladez.cz/"
+    property string apiUrl: "https://api.pohles.rudickamladez.cz/"
     property string keycloak_url: "https://auth.lukasmatuska.cz/"
     property string keycloak_client_id: "admin-v3"
     property string keycloak_client_secret: ""
@@ -78,6 +78,9 @@ ApplicationWindow {
         let request = new XMLHttpRequest()
         request.onreadystatechange = function() {
             if (request.readyState === 4) {
+                if (root.debug) {
+                    console.log(request.responseText)
+                }
                 root.session = JSON.parse(request.responseText)
             }
         }
@@ -139,7 +142,7 @@ ApplicationWindow {
             if (request.readyState === 4) {
                 var text = request.responseText;
                 if (root.debug) {
-//                    console.log(text);
+                    console.log(text);
                 }
                 ticketModel.loadFromJson(text)
             }
@@ -155,7 +158,9 @@ ApplicationWindow {
         let request = new XMLHttpRequest()
         request.onreadystatechange = function() {
             if (request.readyState === 4) {
-                console.log(request.responseText)
+                if (root.debug) {
+                    console.log(request.responseText)
+                }
                 root.getTicket()
             }
         }
@@ -214,7 +219,6 @@ ApplicationWindow {
                 root.free = stats.free
                 root.reserved = stats.reserved
                 root.total = stats.total
-                root.cancelled = stats.cancelled
                 statsPopup.open()
             }
         }
@@ -237,6 +241,53 @@ ApplicationWindow {
         id: ticketSelectionModel
         model: ticketFilterModel
     }
+
+    Component {
+        id: deleteDialogComponent
+
+        Dialog {
+            x: (parent.width-width)/2
+            y: (parent.height-height)/2
+            parent: Overlay.overlay
+            width: deleteLabel.width+horizontalPadding*2
+            height: deleteLabel.height+verticalPadding*2+50
+            standardButtons: Dialog.Yes | Dialog.No
+
+            property string time: ""
+            property string first: ""
+            property string last: ""
+            property string email: ""
+            property string ticketID: ""
+
+            Label {
+                id: deleteLabel
+                text: "Opravdu smazat rezervaci?\n"+time+"\n"+first+" "+last+"\n"+email
+            }
+
+            onAccepted: {
+                root.deleteTicketId(ticketID)
+                close()
+            }
+            onRejected: {
+                close()
+            }
+            onClosed: {
+                time = ""
+                first = ""
+                last = ""
+                email = ""
+                ticketID = ""
+                deleteDialogLoader.active = false
+            }
+        }
+    }
+
+    Loader {
+        id: deleteDialogLoader
+        active: false
+        sourceComponent: deleteDialogComponent
+    }
+
 
     Popup {
         id: statsPopup
@@ -614,7 +665,13 @@ ApplicationWindow {
                                     text: "Smazat"
                                     icon.source: "qrc:/icons/delete.svg"
                                     onClicked: {
-                                        root.deleteTicketId(idRole)
+                                        deleteDialogLoader.active = true
+                                        deleteDialogLoader.item.time = timeRole
+                                        deleteDialogLoader.item.first = firstNameRole
+                                        deleteDialogLoader.item.last = lastNameRole
+                                        deleteDialogLoader.item.email = emailRole
+                                        deleteDialogLoader.item.ticketID = idRole
+                                        deleteDialogLoader.item.open()
                                     }
                                 }
                                 onClosed: {
