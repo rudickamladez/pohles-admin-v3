@@ -15,7 +15,7 @@ ApplicationWindow {
     minimumWidth: 640
     minimumHeight: 480
 
-    property string apiUrl: "https://api-dev.pohles.rudickamladez.cz/"
+    property string apiUrl: "https://api.pohles.rudickamladez.cz/"
     property string keycloak_url: "https://auth.lukasmatuska.cz/"
     property string keycloak_client_id: "admin-v3"
     property string keycloak_client_secret: ""
@@ -78,6 +78,9 @@ ApplicationWindow {
         let request = new XMLHttpRequest()
         request.onreadystatechange = function() {
             if (request.readyState === 4) {
+                if (root.debug) {
+                    console.log(request.responseText)
+                }
                 root.session = JSON.parse(request.responseText)
             }
         }
@@ -216,7 +219,6 @@ ApplicationWindow {
                 root.free = stats.free
                 root.reserved = stats.reserved
                 root.total = stats.total
-                root.cancelled = stats.cancelled
                 statsPopup.open()
             }
         }
