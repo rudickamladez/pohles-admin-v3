@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
     qmlRegisterType<TicketModel>("Pohles", 1, 0, "TicketModel");
     qmlRegisterType<TicketFilterModel>("Pohles", 1, 0, "TicketFilterModel");
 
-    const QUrl url(u"qrc:/pohles-admin-v3/main.qml"_qs);
+    const QUrl url("qrc:/main.qml");
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
         &app, [url](QObject *obj, const QUrl &objUrl) {
             if (!obj && url == objUrl)
